@@ -1,0 +1,21 @@
+# Keil generated files
+OBJ/
+Objects/
+Listings/
+RTE/
+*.axf
+*.o
+*.d
+*.dep
+*.map
+*.lnp
+*.hex
+*.htm
+
+# Per-user Keil files
+*.uvoptx
+*.uvguix.*
+*.uvgui.*
+
+# Accidental duplicate project directory from packaging
+keil/keil/

@@ -14,6 +14,7 @@
 
 #define KEY1_PRES      1
 #define KEY2_PRES      2
+#define KEY3_PRES      3
  
 
 uint8_t Key1_State(uint8_t mode);

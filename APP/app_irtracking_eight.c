@@ -1,9 +1,13 @@
 #include "app_irtracking_eight.h"
 
-#define IRTrack_Trun_KP (-28.00)  //35
+#define IRTrack_Trun_KP (-3.60)
 #define IRTrack_Trun_KI (-0.000000)  // 0.01
-#define IRTrack_Trun_KD (-02.8000)  //40
-#define IRR_TURN_LIMIT 45
+#define IRTrack_Trun_KD (-0.8000)
+#define IRR_TURN_LIMIT 31
+/* The YB-CVT01 motor channels turn opposite to the original tracking
+ * template's differential polarity. Keep this switch explicit so it can be
+ * changed without retuning the sensor weights or PID gains. */
+#define IRR_STEERING_POLARITY (-1)
 
 
 u8 x1,x2,x3,x4,x5,x6,x7,x8;
@@ -12,7 +16,7 @@ u8 trun_flag = 0;
 
 
  int8_t err = 0;
-#define IRR_SPEED 			  70  //巡线速度
+#define IRR_SPEED 			  73  //巡线速度
 #define IRTrack_Minddle    0 //巡线中值
 
 
@@ -134,7 +138,7 @@ void Line_Tracke(int state) {
 			if(state==1)
 		{
 		
-	  pid_output_IRR = (int)(Track_PID(err));
+	  pid_output_IRR = (int)(Track_PID(err) * IRR_STEERING_POLARITY);
 		if (pid_output_IRR > IRR_TURN_LIMIT) pid_output_IRR = IRR_TURN_LIMIT;
 		if (pid_output_IRR < -IRR_TURN_LIMIT) pid_output_IRR = -IRR_TURN_LIMIT;
 		

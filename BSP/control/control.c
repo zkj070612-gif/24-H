@@ -13,6 +13,7 @@
 #define HEADING_TURN_LIMIT       28.0f
 #define MIN_WHEEL_CMD            20.0f
 #define MAX_WHEEL_CMD            90.0f
+#define MODE_MENU_GUARD_MS       2000U
 
 /* These are the original Yahboom H-task test corrections. They are kept in
  * one place so track-side tuning is straightforward. */
@@ -209,23 +210,41 @@ static void OnArcExitReached(void)
 uint8_t switch_mode(void)
 {
     uint8_t selected = 1U;
+    uint32_t menu_guard_start;
 
     OLED_Clear();
     OLED_ShowString(0, 0, "Select Mode:", 8, 1);
     OLED_ShowNum(88, 0, selected, 1, 16, 1);
-    OLED_ShowString(0, 20, "K1:+  K2:OK", 8, 1);
+    OLED_ShowString(0, 20, "K1/K3:+ K2:OK", 8, 1);
     OLED_Refresh();
 
-    for (;;) {
-        uint8_t key;
+    /* Keep the menu visible for at least two seconds. Each key has its own
+     * one-shot state so a startup level on one input cannot lock the others. */
+    menu_guard_start = Get_Time();
+    while ((Get_Time() - menu_guard_start) < MODE_MENU_GUARD_MS) {
         Scheduler_Run();
-        key = KEY_Scan();
-        if (key == KEY1_PRES) {
+        (void)Key1_State(KEY_MODE_ONE_TIME);
+        (void)Key2_State(KEY_MODE_ONE_TIME);
+        (void)Key3_State(KEY_MODE_ONE_TIME);
+    }
+
+    for (;;) {
+        uint8_t next_k1;
+        uint8_t next_k3;
+        uint8_t confirm_k2;
+
+        Scheduler_Run();
+        next_k1 = Key1_State(KEY_MODE_ONE_TIME);
+        next_k3 = Key3_State(KEY_MODE_ONE_TIME);
+        confirm_k2 = Key2_State(KEY_MODE_ONE_TIME);
+
+        if ((next_k1 == KEY_PRESS) || (next_k3 == KEY_PRESS)) {
             selected++;
             if (selected > 4U) selected = 1U;
             OLED_ShowNum(88, 0, selected, 1, 16, 1);
             OLED_Refresh();
-        } else if (key == KEY2_PRES) {
+            delay_ms(20);
+        } else if (confirm_k2 == KEY_PRESS) {
             OLED_ShowString(88, 20, "OK", 8, 1);
             OLED_Refresh();
             delay_ms(250);

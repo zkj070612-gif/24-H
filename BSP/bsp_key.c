@@ -6,20 +6,23 @@ uint16_t g_key3_long_press = 0;
 
 static uint8_t Key1_is_Press(void)
 {
+    /* KEY1 has a 47 kOhm pull-down and is driven high when pressed. */
     return ((DL_GPIO_readPins(KEY_button1_PORT, KEY_button1_PIN) &
         KEY_button1_PIN) != 0U) ? KEY_PRESS : KEY_RELEASE;
 }
 
 static uint8_t Key2_is_Press(void)
 {
+    /* KEY2 has a 10 kOhm pull-up and is shorted to GND when pressed. */
     return ((DL_GPIO_readPins(KEY_button2_PORT, KEY_button2_PIN) &
-        KEY_button2_PIN) != 0U) ? KEY_PRESS : KEY_RELEASE;
+        KEY_button2_PIN) == 0U) ? KEY_PRESS : KEY_RELEASE;
 }
 
 static uint8_t Key3_is_Press(void)
 {
+    /* KEY3 has a 10 kOhm pull-up and is shorted to GND when pressed. */
     return ((DL_GPIO_readPins(KEY_button3_PORT, KEY_button3_PIN) &
-        KEY_button3_PIN) != 0U) ? KEY_PRESS : KEY_RELEASE;
+        KEY_button3_PIN) == 0U) ? KEY_PRESS : KEY_RELEASE;
 }
 
 static uint8_t Key_OneShot(uint8_t pressed, uint8_t mode, uint8_t *state)
@@ -79,7 +82,8 @@ uint8_t KEY_Scan(void)
     static uint8_t latched = 0;
 
     if ((Key1_is_Press() == KEY_RELEASE) &&
-        (Key2_is_Press() == KEY_RELEASE)) {
+        (Key2_is_Press() == KEY_RELEASE) &&
+        (Key3_is_Press() == KEY_RELEASE)) {
         latched = 0U;
         return 0U;
     }
@@ -95,6 +99,10 @@ uint8_t KEY_Scan(void)
     if (Key2_is_Press() == KEY_PRESS) {
         latched = 1U;
         return KEY2_PRES;
+    }
+    if (Key3_is_Press() == KEY_PRESS) {
+        latched = 1U;
+        return KEY3_PRES;
     }
     return 0U;
 }

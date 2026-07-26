@@ -1,9 +1,9 @@
 #include "app_irtracking_eight.h"
 
-#define IRTrack_Trun_KP (-3.60)
+#define IRTrack_Trun_KP (-3.80)
 #define IRTrack_Trun_KI (-0.000000)  // 0.01
 #define IRTrack_Trun_KD (-0.8000)
-#define IRR_TURN_LIMIT 31
+#define IRR_TURN_LIMIT 33
 /* The YB-CVT01 motor channels turn opposite to the original tracking
  * template's differential polarity. Keep this switch explicit so it can be
  * changed without retuning the sensor weights or PID gains. */

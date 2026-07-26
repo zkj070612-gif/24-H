@@ -16,13 +16,13 @@ const GPIO1   = GPIO.addInstance();
 const GPIO2   = GPIO.addInstance();
 const GPIO3   = GPIO.addInstance();
 const GPIO4   = GPIO.addInstance();
-const GPIO5   = GPIO.addInstance();
 const GPIO6   = GPIO.addInstance();
 const GPIO7   = GPIO.addInstance();
 const GPIO8   = GPIO.addInstance();
 const GPIO9   = GPIO.addInstance();
 const GPIO10  = GPIO.addInstance();
 const GPIO11  = GPIO.addInstance();
+const GPIO12  = GPIO.addInstance();
 const PWM     = scripting.addModule("/ti/driverlib/PWM", {}, false);
 const PWM1    = PWM.addInstance();
 const SPI     = scripting.addModule("/ti/driverlib/SPI", {}, false);
@@ -34,6 +34,7 @@ const TIMER1  = TIMER.addInstance();
 const TIMER2  = TIMER.addInstance();
 const UART    = scripting.addModule("/ti/driverlib/UART", {}, false);
 const UART1   = UART.addInstance();
+const UART2   = UART.addInstance();
 
 /**
  * Write custom configuration values to the imported modules.
@@ -126,10 +127,6 @@ GPIO4.associatedPins[0].assignedPin  = "10";
 GPIO4.associatedPins[0].assignedPort = "PORTB";
 GPIO4.associatedPins[0].pin.$assign  = "PB10";
 
-GPIO5.$name                         = "Infrared_borad";
-GPIO5.associatedPins[0].$name       = "IR_switch";
-GPIO5.associatedPins[0].assignedPin = "9";
-
 GPIO6.$name                         = "IRContorl";
 GPIO6.port                          = "PORTB";
 GPIO6.associatedPins[0].$name       = "GET_OUT";
@@ -200,6 +197,13 @@ GPIO11.associatedPins[1].initialValue = "SET";
 GPIO11.associatedPins[1].$name        = "SCL";
 GPIO11.associatedPins[1].ioStructure  = "OD";
 GPIO11.associatedPins[1].pin.$assign  = "PA1";
+
+GPIO12.$name                          = "MAGNET";
+GPIO12.port                           = "PORTA";
+GPIO12.associatedPins[0].$name        = "CTRL";
+GPIO12.associatedPins[0].assignedPin  = "12";
+GPIO12.associatedPins[0].initialValue = "CLEARED";
+GPIO12.associatedPins[0].pin.$assign  = "PA12";
 
 PWM1.$name                              = "motor_PWM";
 PWM1.ccIndex                            = [0,1,2,3];
@@ -281,6 +285,16 @@ UART1.peripheral.txPin.$assign = "PA10";
 UART1.txPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
 UART1.rxPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric1";
 
+UART2.$name                    = "UART_1";
+UART2.enabledInterrupts        = ["RX"];
+UART2.targetBaudRate           = 9600;
+UART2.uartClkDiv               = "4";
+UART2.peripheral.$assign       = "UART1";
+UART2.peripheral.rxPin.$assign = "PA9";
+UART2.peripheral.txPin.$assign = "PB4";
+UART2.txPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric14";
+UART2.rxPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric15";
+
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
@@ -294,10 +308,10 @@ Board.peripheral.$suggestSolution                  = "DEBUGSS";
 Board.peripheral.swclkPin.$suggestSolution         = "PA20";
 Board.peripheral.swdioPin.$suggestSolution         = "PA19";
 GPIO1.associatedPins[0].pin.$suggestSolution       = "PA17";
-GPIO5.associatedPins[0].pin.$suggestSolution       = "PA9";
 GPIO8.associatedPins[0].pin.$suggestSolution       = "PB13";
 GPIO8.associatedPins[1].pin.$suggestSolution       = "PA31";
 GPIO9.associatedPins[0].pin.$suggestSolution       = "PA15";
 GPIO9.associatedPins[1].pin.$suggestSolution       = "PA30";
 TIMER1.peripheral.$suggestSolution                 = "TIMG0";
 TIMER2.peripheral.$suggestSolution                 = "TIMA1";
+UART2.peripheral.$suggestSolution                  = "UART1";

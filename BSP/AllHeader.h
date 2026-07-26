@@ -19,6 +19,8 @@
 #include "bsp.h"
 
 #include "usart0.h"
+#include "usart1_ble.h"
+#include "magnet.h"
 
 
 
@@ -46,8 +48,33 @@
 
 #include "inv_mpu.h"
 #include "inv_mpu_dmp_motion_driver.h"
-#include "bsp_mpu6050.h"
-#include "get_mpu6050.h"
+
+/* 选择使用的姿态传感器 (二选一) */
+//#define USE_MPU6050
+#define USE_BNO085
+
+#ifdef USE_MPU6050
+    #include "bsp_mpu6050.h"
+    #include "get_mpu6050.h"
+#else
+    #include "bsp_bno085.h"
+    #include "get_bno085.h"
+
+    /* 兼容宏定义 */
+    #define DMP_Init()              BNO085_DMP_Init()
+    #define Get_EulerAngles()       BNO085_Get_EulerAngles()
+    #define Get_Filter              BNO085_Get_Filter
+    #define Dir_PID                 BNO085_Dir_PID
+    #define Get_Angle               BNO085_Get_Angle
+    #define Get_CalibratedAngles()  BNO085_Get_CalibratedAngles()
+    #define AngleOffsetCalc()       BNO085_AngleOffsetCalc()
+    #define navigetion_0_360_limit  BNO085_navigetion_0_360_limit
+    #define get_minor_arc           BNO085_get_minor_arc
+    #define MPU6050ReadGyro         BNO085_ReadGyro_Short
+    #define MPU6050ReadAcc          BNO085_ReadAccel_Short
+    #define MPU6050_GetTemp         BNO085_GetTemp
+#endif
+
 #include "Filter.h"
 
 

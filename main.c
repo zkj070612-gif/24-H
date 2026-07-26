@@ -1,5 +1,78 @@
 #include "AllHeader.h"
 
+#if BLE_UART1_TEST_MODE
+
+static void ShowBluetoothStatus(uint8_t data, uint32_t count)
+{
+    uint8_t printable = data;
+
+    if ((printable < 32U) || (printable > 126U)) {
+        printable = '.';
+    }
+
+    OLED_Clear();
+    OLED_ShowString(0, 0, "BLE MAGNET TEST", 8, 1);
+    OLED_ShowString(0, 8, Magnet_IsOn() ? "MAGNET: ON " : "MAGNET: OFF", 8, 1);
+    OLED_ShowString(0, 16, "RX:", 8, 1);
+    OLED_ShowChar(18, 16, printable, 8, 1);
+    OLED_ShowString(36, 16, "DEC:", 8, 1);
+    OLED_ShowNum(60, 16, data, 3, 8, 1);
+    OLED_ShowString(0, 24, "COUNT:", 8, 1);
+    OLED_ShowNum(36, 24, count, 5, 8, 1);
+    OLED_Refresh();
+}
+
+int main(void)
+{
+    uint8_t data;
+    uint32_t received_count = 0U;
+    uint32_t magnet_off_deadline = 0U;
+
+    SYSCFG_DL_init();
+    Magnet_Init();
+    Motor_Stop(0);
+    BLE_UART1_Init();
+    Ultrasonic_Init();
+    OLED_Init();
+
+    OLED_Clear();
+    OLED_ShowString(0, 0, "BLE MAGNET TEST", 8, 1);
+    OLED_ShowString(0, 8, "MAGNET: OFF", 8, 1);
+    OLED_ShowString(0, 16, "1=ON  0=OFF", 8, 1);
+    OLED_ShowString(0, 24, "AUTO OFF: 3s", 8, 1);
+    OLED_Refresh();
+
+    BLE_UART1_SendString("BLE MAGNET READY: 1=ON, 0=OFF\r\n");
+
+    for (;;) {
+        if (BLE_UART1_ReadByte(&data)) {
+            received_count++;
+
+            if (data == '1') {
+                Magnet_On();
+                magnet_off_deadline = Get_Time() + MAGNET_MAX_ON_MS;
+                BLE_UART1_SendString("MAGNET ON\r\n");
+            } else if (data == '0') {
+                Magnet_Off();
+                BLE_UART1_SendString("MAGNET OFF\r\n");
+            } else {
+                BLE_UART1_SendString("SEND 1 OR 0\r\n");
+            }
+
+            ShowBluetoothStatus(data, received_count);
+        }
+
+        if (Magnet_IsOn() &&
+            ((int32_t)(Get_Time() - magnet_off_deadline) >= 0)) {
+            Magnet_Off();
+            BLE_UART1_SendString("MAGNET AUTO OFF\r\n");
+            ShowBluetoothStatus('T', received_count);
+        }
+    }
+}
+
+#else
+
 #define TRACKING_WARMUP_MS 20000U
 #define TRACKING_RETRY_MS   1000U
 
@@ -77,3 +150,5 @@ int main(void)
         }
     }
 }
+
+#endif

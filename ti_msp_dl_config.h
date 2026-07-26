@@ -150,6 +150,22 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define UART_0_BAUD_RATE                                                (115200)
 #define UART_0_IBRD_10_MHZ_115200_BAUD                                       (5)
 #define UART_0_FBRD_10_MHZ_115200_BAUD                                      (27)
+/* Defines for UART_1 */
+#define UART_1_INST                                                        UART1
+#define UART_1_INST_FREQUENCY                                           10000000
+#define UART_1_INST_IRQHandler                                  UART1_IRQHandler
+#define UART_1_INST_INT_IRQN                                      UART1_INT_IRQn
+#define GPIO_UART_1_RX_PORT                                                GPIOA
+#define GPIO_UART_1_TX_PORT                                                GPIOB
+#define GPIO_UART_1_RX_PIN                                         DL_GPIO_PIN_9
+#define GPIO_UART_1_TX_PIN                                         DL_GPIO_PIN_4
+#define GPIO_UART_1_IOMUX_RX                                     (IOMUX_PINCM20)
+#define GPIO_UART_1_IOMUX_TX                                     (IOMUX_PINCM17)
+#define GPIO_UART_1_IOMUX_RX_FUNC                      IOMUX_PINCM20_PF_UART1_RX
+#define GPIO_UART_1_IOMUX_TX_FUNC                      IOMUX_PINCM17_PF_UART1_TX
+#define UART_1_BAUD_RATE                                                  (9600)
+#define UART_1_IBRD_10_MHZ_9600_BAUD                                        (65)
+#define UART_1_FBRD_10_MHZ_9600_BAUD                                         (7)
 
 
 
@@ -234,12 +250,6 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for WQ2812: GPIOB.10 with pinCMx 27 on package pin 62 */
 #define RGB_WQ2812_PIN                                          (DL_GPIO_PIN_10)
 #define RGB_WQ2812_IOMUX                                         (IOMUX_PINCM27)
-/* Port definition for Pin Group Infrared_borad */
-#define Infrared_borad_PORT                                              (GPIOA)
-
-/* Defines for IR_switch: GPIOA.9 with pinCMx 20 on package pin 55 */
-#define Infrared_borad_IR_switch_PIN                             (DL_GPIO_PIN_9)
-#define Infrared_borad_IR_switch_IOMUX                           (IOMUX_PINCM20)
 /* Port definition for Pin Group IRContorl */
 #define IRContorl_PORT                                                   (GPIOB)
 
@@ -257,6 +267,12 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for CS: GPIOB.6 with pinCMx 23 on package pin 58 */
 #define SPI_CS_PIN                                               (DL_GPIO_PIN_6)
 #define SPI_CS_IOMUX                                             (IOMUX_PINCM23)
+/* Port definition for Pin Group MAGNET */
+#define MAGNET_PORT                                                      (GPIOA)
+
+/* Defines for CTRL: GPIOA.12 with pinCMx 34 on package pin 5 */
+#define MAGNET_CTRL_PIN                                         (DL_GPIO_PIN_12)
+#define MAGNET_CTRL_IOMUX                                        (IOMUX_PINCM34)
 /* Defines for button1: GPIOA.18 with pinCMx 40 on package pin 11 */
 #define KEY_button1_PORT                                                 (GPIOA)
 #define KEY_button1_PIN                                         (DL_GPIO_PIN_18)
@@ -328,6 +344,7 @@ void SYSCFG_DL_motor_PWM_init(void);
 void SYSCFG_DL_TIMER_20ms_init(void);
 void SYSCFG_DL_TIMER_1ms_init(void);
 void SYSCFG_DL_UART_0_init(void);
+void SYSCFG_DL_UART_1_init(void);
 void SYSCFG_DL_SPI_W25Q64_init(void);
 void SYSCFG_DL_ADC_Senor_init(void);
 

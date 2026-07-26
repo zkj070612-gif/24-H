@@ -15,6 +15,7 @@
 
 - `APP/`：任务逻辑与控制算法
 - `BSP/`：板级外设驱动
+- `K230_vision/`：K230/CanMV 视觉代码、模型和主控通信协议
 - `keil/`：Keil 工程、启动文件与散装加载文件
 - `empty.syscfg`、`ti_msp_dl_config.*`：TI SysConfig 生成配置
 

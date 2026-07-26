@@ -441,6 +441,16 @@
               <FilePath>..\BSP\usart0.c</FilePath>
             </File>
             <File>
+              <FileName>usart1_ble.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\usart1_ble.c</FilePath>
+            </File>
+            <File>
+              <FileName>magnet.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\magnet.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_beep_led.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\bsp_beep_led.c</FilePath>

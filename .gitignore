@@ -19,3 +19,6 @@ RTE/
 
 # Accidental duplicate project directory from packaging
 keil/keil/
+
+# Local backup of the K230 factory SD card (large and may contain credentials)
+K230_vision/vendor_reference/vendor_reference/factory_sdcard_snapshot/

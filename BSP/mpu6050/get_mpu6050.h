@@ -32,6 +32,8 @@ float navigetion_0_360_limit(float angle);
 float get_minor_arc(float azimuth,float headingAngle);
 void AngleOffsetCalc(void) ;
 void Get_CalibratedAngles(void);
+void MPU6050_StartYawDriftCalibration(void);
+void MPU6050_FinishYawDriftCalibration(void);
 void Get_Angle(uint8_t way);
 
 float get_minor_arc(float azimuth,float headingAngle) ;

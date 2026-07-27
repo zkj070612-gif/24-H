@@ -24,6 +24,7 @@ void deal_IRdata(u8 *x1,u8 *x2,u8 *x3,u8 *x4,u8 *x5,u8 *x6,u8 *x7,u8 *x8);
 
 void Copy_HD_Data();
 void Line_Tracke(int state);
+void Line_Track_Reset(void);
 //void LineWalking(int line_l,int line_r,int state);
 
 #endif

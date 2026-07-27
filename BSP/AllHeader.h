@@ -50,8 +50,8 @@
 #include "inv_mpu_dmp_motion_driver.h"
 
 /* 选择使用的姿态传感器 (二选一) */
-//#define USE_MPU6050
-#define USE_BNO085
+#define USE_MPU6050
+//#define USE_BNO085
 
 #ifdef USE_MPU6050
     #include "bsp_mpu6050.h"

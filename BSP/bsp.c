@@ -38,6 +38,7 @@ void bsp_init(void)
 	
 	
 		DMP_Init();
+        MPU6050_StartYawDriftCalibration();
 	
 		encoder_init();
 		Init_Motor_PWM();

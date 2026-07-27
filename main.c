@@ -123,6 +123,7 @@ int main(void)
 
     mode = switch_mode();
     WaitForTrackingModule();
+    MPU6050_FinishYawDriftCalibration();
     Competition_Init(mode);
 
     for (;;) {

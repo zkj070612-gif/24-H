@@ -2867,25 +2867,28 @@ u8 run_self_test(void)
 	//char test_packet[4] = {0};
 	long gyro[3], accel[3]; 
 	result = mpu_run_self_test(gyro, accel);
-	if (result == 0x3) 
+	if ((result & 0x01) != 0)
 	{
 		/* Test passed. We can trust the gyro data here, so let's push it down
 		* to the DMP.
 		*/
 		float sens;
-		unsigned short accel_sens;
 		mpu_get_gyro_sens(&sens);
 		gyro[0] = (long)(gyro[0] * sens);
 		gyro[1] = (long)(gyro[1] * sens);
 		gyro[2] = (long)(gyro[2] * sens);
 		dmp_set_gyro_bias(gyro);
+	}
+	if ((result & 0x02) != 0)
+	{
+		unsigned short accel_sens;
 		mpu_get_accel_sens(&accel_sens);
 		accel[0] *= accel_sens;
 		accel[1] *= accel_sens;
 		accel[2] *= accel_sens;
 		dmp_set_accel_bias(accel);
-		return 0;
-	}else return 1;
+	}
+	return ((result & 0x01) != 0) ? 0 : 1;
 }
 //陀螺仪方向控制 Gyro direction control
 unsigned short inv_orientation_matrix_to_scalar(
@@ -2954,6 +2957,8 @@ u8 mpu_dmp_init(void)
 		if(res)return 2; 
 		res=mpu_set_sample_rate(DEFAULT_MPU_HZ);	//设置采样率 Setting the Sample Rate
 		if(res)return 3; 
+		res=mpu_set_lpf(20);                 //抑制电机振动造成的陀螺仪噪声
+		if(res)return 3;
 		res=dmp_load_motion_driver_firmware();		//加载dmp固件 Load dmp firmware
 		if(res)return 4; 
 		res=dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_orientation));//设置陀螺仪方向 Set gyroscope orientation
@@ -2964,8 +2969,12 @@ u8 mpu_dmp_init(void)
 		if(res)return 6; 
 		res=dmp_set_fifo_rate(DEFAULT_MPU_HZ);	//设置DMP输出速率(最大不超过200Hz) Set the DMP output rate (maximum 200Hz)
 		if(res)return 7;           
-//		res=run_self_test();		//自检 Self-Test
-//		if(res)return 8;           
+		/*
+		 * Measure the stationary bias and push it into DMP memory. Keep
+		 * startup usable with low-cost modules that fail the factory test;
+		 * DMP_FEATURE_GYRO_CAL continues refining the bias while stationary.
+		 */
+		(void)run_self_test();
 		res=mpu_set_dmp_state(1);	//使能DMP Enabling DMP
 		if(res)return 9;     
 	}

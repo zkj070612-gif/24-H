@@ -2,25 +2,27 @@
 
 #define CONTROL_PERIOD_MS          10U
 #define LINE_STABLE_MS             40U
-#define ARC_EXIT_STABLE_MS         60U
+#define ARC_EXIT_STABLE_MS         30U
 #define STRAIGHT_MIN_MS           400U
 #define ARC_MIN_MS                700U
 #define ARC_MIN_YAW_DEG         135.0f
 #define SENSOR_TIMEOUT_MS         500U
 #define STRAIGHT_SPEED_CMD       53.0f
-#define HEADING_KP                1.20f
-#define HEADING_KD                0.80f
-#define HEADING_TURN_LIMIT       28.0f
-#define MIN_WHEEL_CMD            20.0f
+#define HEADING_KP                1.35f
+#define HEADING_RATE_KD           0.025f
+#define HEADING_RATE_FILTER       0.25f
+#define HEADING_CORRECT_START     0.90f
+#define HEADING_CORRECT_STOP      0.30f
+#define HEADING_TURN_LIMIT       12.0f
+#define HEADING_TURN_SLEW         1.50f
+#define MIN_WHEEL_CMD            35.0f
 #define MAX_WHEEL_CMD            90.0f
-#define MODE2_YAW_SETTLE_MS       300U
-#define MODE2_ALIGN_STABLE_MS     150U
-#define MODE2_ALIGN_TIMEOUT_MS   4000U
-#define MODE2_ALIGN_TOLERANCE     5.0f
-#define MODE2_ALIGN_KP            1.0f
-#define MODE2_ALIGN_MIN_CMD      45.0f
-#define MODE2_ALIGN_MAX_CMD      60.0f
-#define MODE2_REVERSE_YAW_DELTA 195.0f
+#define PRETURN_TOLERANCE_DEG     2.0f
+#define PRETURN_STABLE_MS         80U
+#define PRETURN_TIMEOUT_MS      2500U
+#define PRETURN_SLOW_ZONE_DEG     8.0f
+#define PRETURN_SLOW_CMD         42.0f
+#define PRETURN_FAST_CMD         52.0f
 #define MODE_MENU_GUARD_MS       2000U
 
 /* These are the original Yahboom H-task test corrections. They are kept in
@@ -43,12 +45,15 @@ static uint32_t s_white_stable_ms = 0;
 static uint32_t s_signal_end_ms = 0;
 static uint8_t s_signal_active = 0;
 static uint8_t s_seen_white = 0;
-static uint8_t s_mode2_align_active = 0;
-static uint32_t s_mode2_align_stable_ms = 0;
+static uint8_t s_preturn_active = 0;
+static uint8_t s_heading_correction_active = 0;
+static uint32_t s_preturn_stable_ms = 0;
 static float s_initial_yaw = 0.0f;
 static float s_target_yaw = 0.0f;
 static float s_arc_start_yaw = 0.0f;
 static float s_heading_error_last = 0.0f;
+static float s_heading_error_rate = 0.0f;
+static float s_heading_turn_command = 0.0f;
 
 static float Wrap360(float angle)
 {
@@ -76,6 +81,13 @@ static float ClampFloat(float value, float low, float high)
     if (value < low) return low;
     if (value > high) return high;
     return value;
+}
+
+static float SlewToward(float current, float target, float step)
+{
+    if (target > (current + step)) return current + step;
+    if (target < (current - step)) return current - step;
+    return target;
 }
 
 static void SignalStart(void)
@@ -129,10 +141,14 @@ static void EnterState(CompetitionState state)
     s_white_stable_ms = 0U;
     s_seen_white = 0U;
     s_heading_error_last = 0.0f;
+    s_heading_error_rate = 0.0f;
+    s_heading_turn_command = 0.0f;
+    s_heading_correction_active = 0U;
     odometry_sum = 0;
     encoder_odometry_flag = 1;
     if ((state == COMP_STATE_ARC_FIRST) || (state == COMP_STATE_ARC_SECOND)) {
         s_arc_start_yaw = calibratedYaw;
+        Line_Track_Reset();
     }
 }
 
@@ -163,55 +179,82 @@ static void UpdateLineStability(bool black, uint32_t elapsed_ms)
     }
 }
 
-static void DriveHeading(float target_yaw)
+static void DriveHeading(float target_yaw, uint32_t elapsed_ms)
 {
     float error = SignedAngleError(calibratedYaw, target_yaw);
-    float turn = HEADING_KP * error + HEADING_KD * (error - s_heading_error_last);
+    float abs_error = (error < 0.0f) ? -error : error;
+    float raw_error_rate;
+    float requested_turn = 0.0f;
     float left;
     float right;
 
+    if (elapsed_ms == 0U) {
+        elapsed_ms = CONTROL_PERIOD_MS;
+    } else if (elapsed_ms > 50U) {
+        elapsed_ms = 50U;
+    }
+
+    raw_error_rate = SignedAngleError(error, s_heading_error_last) *
+                     1000.0f / (float)elapsed_ms;
+    s_heading_error_rate += HEADING_RATE_FILTER *
+        (raw_error_rate - s_heading_error_rate);
     s_heading_error_last = error;
-    turn = ClampFloat(turn, -HEADING_TURN_LIMIT, HEADING_TURN_LIMIT);
-    left = ClampFloat(STRAIGHT_SPEED_CMD - turn, MIN_WHEEL_CMD, MAX_WHEEL_CMD);
-    right = ClampFloat(STRAIGHT_SPEED_CMD + turn, MIN_WHEEL_CMD, MAX_WHEEL_CMD);
+
+    if ((s_heading_correction_active == 0U) &&
+        (abs_error >= HEADING_CORRECT_START)) {
+        s_heading_correction_active = 1U;
+    } else if ((s_heading_correction_active != 0U) &&
+               (abs_error <= HEADING_CORRECT_STOP)) {
+        s_heading_correction_active = 0U;
+    }
+
+    if (s_heading_correction_active != 0U) {
+        requested_turn = HEADING_KP * error +
+                         HEADING_RATE_KD * s_heading_error_rate;
+        requested_turn = ClampFloat(requested_turn,
+            -HEADING_TURN_LIMIT, HEADING_TURN_LIMIT);
+    }
+
+    /*
+     * Never jump directly from a left correction to a right correction.
+     * First unwind to zero; this removes the time-consuming left/right hunt.
+     */
+    if (((requested_turn > 0.0f) && (s_heading_turn_command < 0.0f)) ||
+        ((requested_turn < 0.0f) && (s_heading_turn_command > 0.0f))) {
+        requested_turn = 0.0f;
+    }
+    s_heading_turn_command = SlewToward(
+        s_heading_turn_command, requested_turn, HEADING_TURN_SLEW);
+
+    left = ClampFloat(STRAIGHT_SPEED_CMD - s_heading_turn_command,
+                      MIN_WHEEL_CMD, MAX_WHEEL_CMD);
+    right = ClampFloat(STRAIGHT_SPEED_CMD + s_heading_turn_command,
+                       MIN_WHEEL_CMD, MAX_WHEEL_CMD);
     Set_PID_Motor(left, right, 0.0f);
 }
 
-static bool AlignMode2SecondStraight(uint32_t now, uint32_t elapsed_ms)
+static bool PreTurnToStraight(uint32_t elapsed_ms)
 {
     float error;
     float abs_error;
     float turn;
     uint32_t step = (elapsed_ms > 50U) ? 50U : elapsed_ms;
 
-    /* The filtered yaw can lag behind the chassis after the fast B->C arc.
-     * Brake briefly at C so the filter catches up before deciding how much
-     * alignment is still required. */
-    if ((now - s_state_start_ms) < MODE2_YAW_SETTLE_MS) {
-        Motor_Stop(1);
-        return false;
-    }
-
     error = SignedAngleError(calibratedYaw, s_target_yaw);
     abs_error = (error < 0.0f) ? -error : error;
 
-    if (abs_error <= MODE2_ALIGN_TOLERANCE) {
+    if (abs_error <= PRETURN_TOLERANCE_DEG) {
         Motor_Stop(1);
-        s_mode2_align_stable_ms += step;
-        return (s_mode2_align_stable_ms >= MODE2_ALIGN_STABLE_MS);
+        s_preturn_stable_ms += step;
+        return (s_preturn_stable_ms >= PRETURN_STABLE_MS);
     }
 
-    s_mode2_align_stable_ms = 0U;
-    turn = ClampFloat(MODE2_ALIGN_KP * error,
-        -MODE2_ALIGN_MAX_CMD, MODE2_ALIGN_MAX_CMD);
-    if ((turn > 0.0f) && (turn < MODE2_ALIGN_MIN_CMD)) {
-        turn = MODE2_ALIGN_MIN_CMD;
-    } else if ((turn < 0.0f) && (turn > -MODE2_ALIGN_MIN_CMD)) {
-        turn = -MODE2_ALIGN_MIN_CMD;
+    s_preturn_stable_ms = 0U;
+    turn = (abs_error <= PRETURN_SLOW_ZONE_DEG) ?
+           PRETURN_SLOW_CMD : PRETURN_FAST_CMD;
+    if (error < 0.0f) {
+        turn = -turn;
     }
-
-    /* Same steering polarity as DriveHeading(), but with opposite wheel
-     * directions so alignment happens near point C instead of on a wide arc. */
     Set_PID_Motor(-turn, turn, 0.0f);
     return false;
 }
@@ -238,16 +281,18 @@ static void OnArcExitReached(void)
 
     if (s_state == COMP_STATE_ARC_FIRST) {
         if (s_mode == 2U) {
-            /* The current MPU6050 reports about 220 degrees when the chassis
-             * has physically turned 180 degrees. Use that measured delta for
-             * the C->D reverse-heading trial. */
-            s_target_yaw = Wrap360(s_initial_yaw + MODE2_REVERSE_YAW_DELTA);
-            s_mode2_align_active = 1U;
-            s_mode2_align_stable_ms = 0U;
-            PID_Clear_Motor(MAX_MOTOR);
+            /*
+             * The arc has already reversed the chassis. Lock the actual exit
+             * heading and start the reverse straight immediately instead of
+             * spending several seconds on a second in-place alignment.
+             */
+            s_target_yaw = Wrap360(calibratedYaw);
+            s_preturn_active = 0U;
         } else {
             s_target_yaw = Wrap360(calibratedYaw +
                 s_second_diagonal_deg[s_lap - 1U]);
+            s_preturn_active = 1U;
+            s_preturn_stable_ms = 0U;
         }
         EnterState(COMP_STATE_STRAIGHT_SECOND);
         return;
@@ -257,6 +302,8 @@ static void OnArcExitReached(void)
         s_lap++;
         s_target_yaw = Wrap360(calibratedYaw +
             s_first_diagonal_deg[s_lap - 1U]);
+        s_preturn_active = 1U;
+        s_preturn_stable_ms = 0U;
         EnterState(COMP_STATE_STRAIGHT_FIRST);
     } else {
         StopMission(false);
@@ -316,16 +363,19 @@ void Competition_Init(uint8_t mode)
     s_lap = 1U;
     s_mission_start_ms = Get_Time();
     s_last_control_ms = s_mission_start_ms;
-    s_mode2_align_active = 0U;
-    s_mode2_align_stable_ms = 0U;
+    s_preturn_active = 0U;
+    s_preturn_stable_ms = 0U;
     PID_Clear_Motor(MAX_MOTOR);
     Motor_Stop(1);
 
+    /* Re-zero the fused heading at each mission start. */
+    AngleOffsetCalc();
     s_initial_yaw = Wrap360(calibratedYaw);
     if ((s_mode == 1U) || (s_mode == 2U)) {
         s_target_yaw = s_initial_yaw;
     } else {
         s_target_yaw = Wrap360(calibratedYaw + s_first_diagonal_deg[0]);
+        s_preturn_active = 1U;
     }
 
     EnterState(COMP_STATE_STRAIGHT_FIRST);
@@ -367,20 +417,21 @@ void Competition_Update(void)
 
     if ((s_state == COMP_STATE_STRAIGHT_FIRST) ||
         (s_state == COMP_STATE_STRAIGHT_SECOND)) {
-        if ((s_mode2_align_active != 0U) &&
-            (s_mode == 2U) &&
-            (s_state == COMP_STATE_STRAIGHT_SECOND)) {
-            if ((now - s_state_start_ms) >= MODE2_ALIGN_TIMEOUT_MS) {
+        if (s_preturn_active != 0U) {
+            if ((now - s_state_start_ms) >= PRETURN_TIMEOUT_MS) {
                 StopMission(true);
-            } else if (AlignMode2SecondStraight(now, elapsed)) {
-                s_mode2_align_active = 0U;
+            } else if (PreTurnToStraight(elapsed)) {
+                CompetitionState straight_state = s_state;
+                s_preturn_active = 0U;
                 PID_Clear_Motor(MAX_MOTOR);
-                EnterState(COMP_STATE_STRAIGHT_SECOND);
+                EnterState(straight_state);
+                s_heading_error_last =
+                    SignedAngleError(calibratedYaw, s_target_yaw);
             }
             return;
         }
 
-        DriveHeading(s_target_yaw);
+        DriveHeading(s_target_yaw, elapsed);
         if ((s_seen_white != 0U) &&
             (s_black_stable_ms >= LINE_STABLE_MS) &&
             ((now - s_state_start_ms) >= STRAIGHT_MIN_MS)) {
